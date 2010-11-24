@@ -1,9 +1,17 @@
+<div class="contextual">
+        <% if User.current.allowed_to?(:add_subprojects, @project) %>
+                <%= link_to l(:label_subproject_new), {:controller => 'projects', :action => 'new', :parent_id => @project}, :class => 'icon icon-add' %>
+        <% end %>
+</div>
+
 <h2><%=l(:label_overview)%></h2> 
 	
 <div class="splitcontentleft">
-	<%= textilizable @project.description %>	
+	<div class="wiki">
+		<%= textilizable @project.description %>
+	</div>	
 	<ul>
-	<% unless @project.homepage.blank? %><li><%=l(:field_homepage)%>: <%= link_to(h(@project.homepage), @project.homepage) %></li><% end %>
+	<% unless @project.homepage.blank? %><li><%=l(:field_homepage)%>: <%= auto_link(h(@project.homepage)) %></li><% end %>
 	</ul>
   <% if @subprojects.any? %>
 	<table class="list">
@@ -46,14 +54,14 @@
 	</table>
   <% end %>
 	<% @project.custom_values.each do |custom_value| %>
-	<% if !custom_value.value.empty? %>
+	<% if !custom_value.value.blank? %>
 	   <li><%= custom_value.custom_field.name%>: <%=h show_value(custom_value) %></li>
 	<% end %>
 	<% end %>
 
   <% if User.current.allowed_to?(:view_issues, @project) %>
-  <div class="box">    
-    <h3 class="icon22 icon22-tracker"><%=l(:label_issue_tracking)%></h3>
+  <div class="issues box">    
+    <h3><%=l(:label_issue_tracking)%></h3>
     <ul>
     <% for tracker in @trackers %>    
       <li><%= link_to tracker.name, :controller => 'issues', :action => 'index', :project_id => @project, 
@@ -64,37 +72,32 @@
 			</li>
     <% end %>
     </ul>
-    <p><%= link_to l(:label_issue_view_all), :controller => 'issues', :action => 'index', :project_id => @project, :set_filter => 1 %></p>
+    <p>
+    	<%= link_to l(:label_issue_view_all), :controller => 'issues', :action => 'index', :project_id => @project, :set_filter => 1 %>
+	    <% if authorize_global_implemented && User.current.allowed_to?(:view_calendar, @project, :global => true) %>
+				| <%= link_to(l(:label_calendar), :controller => 'issues', :action => 'calendar', :project_id => @project) %>
+			<% end %>
+			<% if authorize_global_implemented && User.current.allowed_to?(:view_gantt, @project, :global => true) %>
+				| <%= link_to(l(:label_gantt), :controller => 'issues', :action => 'gantt', :project_id => @project) %>
+			<% end %>
+		</p>
   </div>
   <% end %>
   <%= call_hook(:view_projects_show_left, :project => @project) %>
 </div>
 
 <div class="splitcontentright">
-<% if users_by_role_implemented %>
-	<% if @members_by_role.any? %>
-	  <div class="box">
-		<h3 class="icon22 icon22-users"><%=l(:label_member_plural)%></h3>	
-		<p><% @members_by_role.keys.sort.each do |role| %>
-		<%= role.name %>:
-		<%= @members_by_role[role].collect(&:user).sort.collect{|u| link_to_user u}.join(", ") %>
-		<br />
-		<% end %></p>
-	  </div>
-	<% end %>
-<% else %>
-	<% if @users_by_role.any? %>
-	  <div class="box">
-		<h3 class="icon22 icon22-users"><%=l(:label_member_plural)%></h3>    
+  <% if @users_by_role.any? %>
+	<div class="members box">
+		<h3><%=l(:label_member_plural)%></h3>	
 		<p><% @users_by_role.keys.sort.each do |role| %>
 		<%=h role %>: <%= @users_by_role[role].sort.collect{|u| link_to_user u}.join(", ") %><br />
 		<% end %></p>
-	  </div>
+	</div>
 	<% end %>
-<% end %>
-
+    
   <% if @news.any? && authorize_for('news', 'index') %>
-  <div class="box">
+  <div class="news box">
     <h3><%=l(:label_news_latest)%></h3>  
     <%= render :partial => 'news/news', :collection => @news %>
     <p><%= link_to l(:label_news_view_all), :controller => 'news', :action => 'index', :project_id => @project %></p>
@@ -104,21 +107,13 @@
 </div>
 
 <% content_for :sidebar do %>
-    <% planning_links = []
-      planning_links << link_to_if_authorized(l(:label_calendar), :controller => 'issues', :action => 'calendar', :project_id => @project)
-      planning_links << link_to_if_authorized(l(:label_gantt), :controller => 'issues', :action => 'gantt', :project_id => @project)
-      planning_links.compact!
-      unless planning_links.empty? %>
-    <h3><%= l(:label_planning) %></h3>
-    <p><%= planning_links.join(' | ') %></p>
-    <% end %>
-    
     <% if @total_hours && User.current.allowed_to?(:view_time_entries, @project) %>
     <h3><%= l(:label_spent_time) %></h3>
     <p><span class="icon icon-time"><%= l_hours(@total_hours) %></span></p>
     <p><%= link_to(l(:label_details), {:controller => 'timelog', :action => 'details', :project_id => @project}) %> |
     <%= link_to(l(:label_report), {:controller => 'timelog', :action => 'report', :project_id => @project}) %></p>
     <% end %>
+    <%= call_hook(:view_projects_show_sidebar_bottom, :project => @project) %>
 <% end %>
 
 <% content_for :header_tags do %>
