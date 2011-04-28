@@ -1,11 +1,19 @@
+<% content_for(:header_tags) do %>
+<%= javascript_include_tag 'timesheet', :plugin => "timesheet_plugin" %>
+<%= stylesheet_link_tag "timesheet.css", :plugin => "timesheet_plugin", :media => 'all' %>
+<% end %>
+
 <div class="contextual">
     <% if authorize_global_implemented %>
-      <%= link_to(l(:label_project_new), {:controller => 'projects', :action => 'add'}, :class => 'icon icon-add') + ' |' if User.current.allowed_to?(:add_project, nil, :global => true) %>
+      <%= link_to(l(:label_project_new), {:controller => 'projects', :action => 'new'}, :class => 'icon icon-add') + ' |' if User.current.allowed_to?(:add_project, nil, :global => true) %>
+      <%= link_to(l(:label_issue_view_all), { :controller => 'issues' }) + ' |' if User.current.allowed_to?(:view_issues, nil, :global => true) %>
     <% else %>
-      <%= link_to(l(:label_project_new), {:controller => 'projects', :action => 'add'}, :class => 'icon icon-add') + ' |' if User.current.admin? %>
+      <%= link_to(l(:label_project_new), {:controller => 'projects', :action => 'new'}, :class => 'icon icon-add') + ' |' if User.current.admin? %>
+      <%= link_to l(:label_issue_view_all), { :controller => 'issues' } %> |
     <% end %>
     <%= link_to l(:label_issue_view_all), { :controller => 'issues' } %> |
-    <%= link_to l(:label_overall_activity), { :controller => 'projects', :action => 'activity' }%>
+    <%= link_to l(:label_overall_activity), { :controller => 'projects', :action => 'activity' }%> |
+    <a href="#" id="expand_all">Expand All</a>
 </div>
 
 <h2><%=l(:label_project_plural)%></h2>
@@ -15,8 +23,6 @@
 		<tr>
 			<th><%=l(:label_project)%></th>
 			<th><%=l(:field_description)%></th>
-			<th>Leader</th>
-			<th>Budget</th>
 		</tr>
 	</thead>
 	<tbody>
@@ -26,7 +32,14 @@
 			<% classes = "" %>
 			<% spanicon = "" %>
 			<% openonclick = "" %>
-			<% if(!project.children.empty?) %>
+			<% showchildren = false %>
+			<% project.children.each do |child| %>
+			  <% if @projects.include?(child) %>
+			    <% showchildren = true %>
+			    <% break %>
+  			  <% end %>
+  			<% end %>
+			<% if(!project.children.empty? && showchildren) %>
 				<% classes += " closed parent " + cycle("odd", "even") %>
 				<% rowid = "id=\""+project.id.to_s+"span\"" %>
 				<% openonclick = "onclick=\"showHide('"+project.id.to_s+"','"+project.id.to_s+"span')\""%>
@@ -62,9 +75,7 @@
 			<% end %> 
 			<tr class="<%= classes %>" <%= rowid %> >
 				<td class="name"><%= "<span style=\"padding-left: " + (2*(ancestors.length-1)).to_s + "em;\"></span>" %><%= spanicon %><%= project.active? ? link_to(h(project.name), {:controller => 'projects', :action => 'show', :id => project}, :class => "project") : h(project.name) %><span <%= openonclick %> class="empty <%=User.current.member_of?(project) ? 'my-project' : nil%>">&nbsp</span></td>
-				<td  <%= openonclick %>><%= textilizable project.short_description.gsub(/\!.+\!/,""), :project => project %></td>
-        <td <%= openonclick %>><%= project.leader.nil? ? '' : link_to(project.leader.name, "/users/#{project.leader.id}") %></td>
-        <td <%= openonclick %>><%= project.budget %></td>
+				<td <%= openonclick %> ><%= textilizable project.short_description.gsub(/\!.+\!/,""), :project => project %></td>
 			</tr>
 		<% end %>
 	</tbody>
